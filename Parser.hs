@@ -238,7 +238,8 @@ readOrThrow parser input =
       Left err -> throwError $ Parser err
       Right val -> return val
 
---TODO type sigs
+readExpr :: String -> ThrowsError LispVal
 readExpr = readOrThrow parseExpr
 
+readExprList :: String -> ThrowsError [LispVal]
 readExprList = readOrThrow (endBy parseExpr spaces)

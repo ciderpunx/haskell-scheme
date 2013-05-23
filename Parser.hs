@@ -225,9 +225,13 @@ readBin (sign:ds) =
     rBin ('1':xs) = 1 + 2 * rBin xs
     rBin []       = 0
 
-readExpr :: String -> ThrowsError LispVal
-readExpr input = 
-    case parse parseExpr "lisp" input of
-      Left err  -> throwError $ Parser err
+readOrThrow :: Parser a -> String -> ThrowsError a
+readOrThrow parser input = 
+    case parse parser "lisp" input of
+      Left err -> throwError $ Parser err
       Right val -> return val
 
+--TODO type sigs
+readExpr = readOrThrow parseExpr
+
+readExprList = readOrThrow (endBy parseExpr spaces)

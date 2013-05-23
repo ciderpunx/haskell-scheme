@@ -3,6 +3,7 @@ module Types where
 import Control.Monad.Error
 import Text.ParserCombinators.Parsec hiding (spaces)
 import Data.IORef
+import System.IO
 
 data LispVal = Atom String               
              | List [LispVal]
@@ -12,6 +13,8 @@ data LispVal = Atom String
              | Character Char
              | String String
              | Bool Bool
+             | IOFunc ([LispVal] -> IOThrowsError LispVal)
+             | Port Handle
              | PrimitiveFunc ([LispVal] -> ThrowsError LispVal)
              | Func {params :: [String], vararg :: (Maybe String), 
                       body :: [LispVal], closure :: Env}
@@ -29,6 +32,8 @@ showVal (Bool True)            = "#t"
 showVal (Bool False)           = "#f"
 showVal (List contents)        = "(" ++ unwordsList contents ++ ")"
 showVal (DottedList head tail) = "(" ++ unwordsList head ++ " . " ++ showVal tail ++ ")"
+showVal (Port _)               = "<IO port>"
+showVal (IOFunc _)             = "<IO primitive>"
 showVal (PrimitiveFunc _)      = "<primitive>"
 showVal (Func {params  = args, 
                vararg  = varargs, 
@@ -87,6 +92,7 @@ showError (NotFunction message func)    = message ++ ": " ++ show func
 showError (NumArgs expected found)      = "Expected " ++ show expected ++ " args; found values " ++ unwordsList found
 showError (TypeMismatch expected found) = "Invalid type: expected " ++ expected ++ ", found " ++ show found
 showError (Parser parseErr)             = "Parse error at " ++ show parseErr
+showError (Default msg)                 = "Error: " ++ show msg
 
 
 type Env = IORef [(String, IORef LispVal)]

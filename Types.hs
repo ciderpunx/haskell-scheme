@@ -16,6 +16,7 @@ data LispVal = Atom String
              | IOFunc ([LispVal] -> IOThrowsError LispVal)
              | Port Handle
              | PrimitiveFunc ([LispVal] -> ThrowsError LispVal)
+             | Comment
              | Func {params :: [String], vararg :: (Maybe String), 
                       body :: [LispVal], closure :: Env}
 
@@ -25,6 +26,7 @@ showVal :: LispVal -> String
 showVal (String s)             = "\"" ++ s ++ "\""
 showVal (Atom a)               = a
 showVal (Character c)          = show c
+showVal (Comment)              = ""
 showVal (Number n)             = show n
 showVal (Float (Short n))      = show n
 showVal (Float (Long n))       = show n

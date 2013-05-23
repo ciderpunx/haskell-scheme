@@ -1,0 +1,24 @@
+This is my toy implementation of scheme. The core is largely based on
+build yourself a scheme in 48 hours. But with some changes and extensions,
+to help me learn stuff. Things like comments and float support (currently broken).
+
+You need haskell-platform installed 
+# aptitude install haskell-platform
+
+For a recent ghc you cani build with
+$ ghc -o scheme Main.hs
+
+For an older haskell you'll need to do sopmething like this:
+$ ghc -O --make -o scheme -main-is Main.main Main.hs
+
+When you've done that you can run the REPL with:
+$ ./scheme
+
+You can run a scheme program with 
+$ ./scheme program_name.scm
+
+At the prompt you can load the embryonic standard lib with
+$ (load "prelude.scm")
+
+Note I might change the name from prelude, but need to research what it is 
+usually called.

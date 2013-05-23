@@ -1,3 +1,4 @@
+(* First shot at a scheme standard library. Note that comments are in this format *)
 (define (id obj)           obj)
 (define (not x)            (if x #f #t))
 (define (null? obj)        (if (eqv? obj '()) #t #f))

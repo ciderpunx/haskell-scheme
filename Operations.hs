@@ -85,6 +85,7 @@ eval env val@(Float _)                          = return val
 eval env val@(Bool _)                           = return val
 eval env val@(Atom id)                          = getVar env id
 eval env val@(Character _)                      = return val
+eval env val@(Comment)                          = return val
 eval env (List [Atom "quote", val])             = return val
 eval env (List [Atom "set!", Atom var, form])   = eval env form >>= setVar env var
 eval env (List [Atom "define", Atom var, form]) = eval env form >>= defineVar env var
@@ -292,5 +293,6 @@ showValType [(Float (Short n))]      = return $ String $ "Short Float " ++show n
 showValType [(Float (Long n))]       = return $ String $ "Long Float " ++ show n
 showValType [(Bool True)]            = return $ String $ "Boolean #t"
 showValType [(Bool False)]           = return $ String $ "Boolean #f"
+showValType [(Comment)]              = return $ String $ "Comment"
 showValType [(List contents)]        = return $ String $ "List (" ++ unwordsList contents ++ ")"
 showValType [(DottedList head tail)] = return $ String $ "DottedList (" ++ unwordsList head ++ " . " ++ show tail ++ ")"

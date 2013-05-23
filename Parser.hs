@@ -178,7 +178,6 @@ parseDottedList = do
    tail <- char '.' >> spaces >> parseExpr
    return $ DottedList head tail
 
-
 parseQuoted :: Parser LispVal
 parseQuoted = do
   char '\''
@@ -197,6 +196,13 @@ parseUnQuoted = do
      x <- parseExpr
      return $ List [Atom "unquote", x]
 
+parseComment :: Parser LispVal
+parseComment = do
+  string "(*"
+  many (noneOf "*")
+  string "*)"
+  return $ Comment
+
 parseExpr :: Parser LispVal
 parseExpr = parseAtom 
         <|> try parseChar
@@ -207,6 +213,7 @@ parseExpr = parseAtom
         <|> parseQuasiQuoted 
         <|> parseUnQuoted 
         <|> parseString 
+        <|> try parseComment
         <|> do char '('
                x <- try parseList <|> parseDottedList
                char ')'

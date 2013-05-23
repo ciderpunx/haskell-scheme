@@ -40,7 +40,7 @@ showVal (PrimitiveFunc _)      = "<primitive>"
 showVal (Func {params  = args, 
                vararg  = varargs, 
                body    = body, 
-               closure = env}) = "(lambda (" ++ unwords (map show args) ++ 
+               closure = env}) = "(λ (" ++ unwords (map show args) ++ 
                                     (case varargs of 
                                         Nothing   -> ""
                                         Just arg  -> " . " ++ arg) ++ ") ...)" 

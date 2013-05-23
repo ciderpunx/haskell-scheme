@@ -92,8 +92,11 @@ eval env (List [Atom "define", Atom var, form]) = eval env form >>= defineVar en
 eval env (List (Atom "define" : List (Atom var : params) : body))  = makeNormalFunc env params body >>= defineVar env var
 eval env (List (Atom "define" : DottedList (Atom var : params) varargs : body)) = makeVarargs varargs env params body >>= defineVar env var
 eval env (List (Atom "lambda" : List params : body))               = makeNormalFunc env params body
+eval env (List (Atom "λ" : List params : body))                    = makeNormalFunc env params body
 eval env (List (Atom "lambda" : DottedList params varargs : body)) = makeVarargs varargs env params body
+eval env (List (Atom "λ" : DottedList params varargs : body))      = makeVarargs varargs env params body
 eval env (List (Atom "lambda" : varargs@(Atom _) : body))          = makeVarargs varargs env [] body
+eval env (List (Atom "λ" : varargs@(Atom _) : body))               = makeVarargs varargs env [] body
 eval env (List [Atom "load", String filename])                     = load filename >>= liftM last . mapM (eval env)
 eval env (List [Atom "if", pred, conseq, alt]) = do
     result <- eval env pred

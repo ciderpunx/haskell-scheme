@@ -98,6 +98,19 @@ eval env (List (Atom "λ" : DottedList params varargs : body))      = makeVararg
 eval env (List (Atom "lambda" : varargs@(Atom _) : body))          = makeVarargs varargs env [] body
 eval env (List (Atom "λ" : varargs@(Atom _) : body))               = makeVarargs varargs env [] body
 eval env (List [Atom "load", String filename])                     = load filename >>= liftM last . mapM (eval env)
+eval env form@(List (Atom "cond" : branches))                      = 
+    if null branches
+      then throwError $ BadSpecialForm "Cond expression needs a true (default) branch: " form
+      else 
+        case head branches of
+          List [Atom "else", conseq] -> eval env conseq
+          List [pred, conseq]        -> do 
+              result <- eval env pred
+              case result of
+                Bool False -> eval env (List (Atom "cond" : (tail branches)))
+                Bool True  -> eval env conseq
+                p          -> throwError $ BadPredicate "Non-boolean predicate in cond expression" (show p)
+          _ -> throwError $ BadSpecialForm "Cond expression branch wasn't a pair of predicate, consequence: " form
 eval env (List [Atom "if", pred, conseq, alt]) = do
     result <- eval env pred
     case result of

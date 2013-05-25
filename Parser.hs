@@ -91,9 +91,6 @@ parseChar = do
 readChrStr :: String -> Char
 readChrStr s = 
     case (map toLower s) of
-      "n"         -> '\n'
-      "r"         -> '\r'
-      "t"         -> '\t'
       "nul"       -> '\0'
       "soh"       -> '\1' 
       "stx"       -> '\2'	

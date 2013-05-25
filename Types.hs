@@ -4,6 +4,7 @@ import Control.Monad.Error
 import Text.ParserCombinators.Parsec hiding (spaces)
 import Data.IORef
 import System.IO
+import GHC.Float
 
 data LispVal = Atom String               
              | List [LispVal]
@@ -19,7 +20,6 @@ data LispVal = Atom String
              | Comment
              | Func {params :: [String], vararg :: (Maybe String), 
                       body :: [LispVal], closure :: Env}
-
 instance Show LispVal where show = showVal
 
 showVal :: LispVal -> String
@@ -45,6 +45,38 @@ showVal (Func {params  = args,
                                         Nothing   -> ""
                                         Just arg  -> " . " ++ arg) ++ ") ...)" 
 
+instance Eq LispVal where (==) = eqVal
+
+eqVal :: LispVal -> LispVal -> Bool
+eqVal (String s) (String s') = s==s'
+eqVal (Atom a) (Atom a')     = a==a'
+eqVal (Character c) (Character c')         
+                             = c==c'
+eqVal (Number n) (Number n') = n==n'
+eqVal (Float (Short n)) (Float (Short n'))     
+                             = n==n'
+eqVal (Float (Short n)) (Float (Long n'))     
+                             = float2Double n==n'
+eqVal (Float (Long n)) (Float (Short n'))     
+                             = n==float2Double n'
+eqVal (Float (Long n)) (Float (Long n'))     
+                             = n==n'
+eqVal (Bool True) (Bool True)= True
+eqVal (Bool False) (Bool False)
+                             = True
+eqVal (List contents) (List contents')       
+                             = (unwordsList contents)==(unwordsList contents')
+eqVal (DottedList head tail) (DottedList head' tail')
+                             = (unwordsList head) == (unwordsList head') && tail == tail'
+eqVal (Port p) (Port p')     = p==p'
+--TODO: implement function equality. All functions are unequal ATM 
+--Need to think through whether to apply functions for comparison purposes 
+--eqVal (IOFunc f) (IOFunc f') = f==f'
+--eqVal (PrimitiveFunc f) (PrimitiveFunc f') 
+--                             = f==f'
+--eqVal (Func f) (Func f')     = f==f'
+eqVal _ _                    = False -- Comment and Bool T/F && F/T fall through to here
+
 unwordsList :: [LispVal] -> String
 unwordsList = unwords . map showVal
 
@@ -61,7 +93,6 @@ data LispError = NumArgs Integer [LispVal]
                | BadPredicate String String
                | UnboundVar String String
                | Default String
-
 
 instance Show LispError where show = showError
 

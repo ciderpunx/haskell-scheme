@@ -7,7 +7,7 @@ import Text.ParserCombinators.Parsec hiding (spaces)
 import Types
 
 symbol :: Parser Char
-symbol = oneOf "!$%|*+-/:<=?>@^_~"
+symbol = oneOf "-!$%|*+/:<=?>@^_~"
 
 spaces :: Parser ()
 spaces = skipMany1 space
@@ -46,12 +46,12 @@ parseFloat = do
     char '.'
     digitsFrac <- many1 digit 
     exp        <- option 'E' (oneOf "sSfFdDlLeE")
-    digitsExp <- many1 digit -- not sure if this is ever used?
+    digitExp'  <- option '0' digit -- not sure if this is ever used?
     let float   = digitsExp ++ "." ++ digitsFrac
         isShort = (exp `elem` "sSfF")
     case isShort of 
-      True  -> return $ Float . Long . read $ sign : (show (fst (readFloat float !! 0)))
-      False -> return $ Float . Short . read $ sign : (show (fst (readFloat float !! 0)))
+      True   -> return $ Float . Short . read $ sign : (show (fst (readFloat float !! 0)))
+      False  -> return $ Float . Long . read $ sign : (show (fst (readFloat float !! 0)))
 
 -- we support signed versions of binary, decimal, octal, hexadecimal integers
 -- TODO: Exact and inexact number support. Don't really understand or care what it is/is for
@@ -147,9 +147,6 @@ parseBin = do
     digits <- many1 (oneOf "01")
     return $ Number . readBin $ sign : digits
 
--- subtle problem here: xxx parses as an atom. we need this for function names. but we ought not to allow 
--- atoms on their own like this; will probably cover when we get to implementing the environment (we look them up
--- and if undefined throw an error)
 parseAtom :: Parser LispVal
 parseAtom = do
     first <- letter <|> symbol
@@ -193,6 +190,7 @@ parseUnQuoted = do
      x <- parseExpr
      return $ List [Atom "unquote", x]
 
+-- TODO will break if someone puts a * in a comment
 parseComment :: Parser LispVal
 parseComment = do
   string "(*"
@@ -201,12 +199,12 @@ parseComment = do
   return $ Comment
 
 parseExpr :: Parser LispVal
-parseExpr = parseAtom 
+parseExpr = parseQuoted 
         <|> try parseChar
         <|> try parseBool
         <|> try parseFloat
-        <|> parseNumber
-        <|> parseQuoted 
+        <|> try parseNumber
+        <|> parseAtom 
         <|> parseQuasiQuoted 
         <|> parseUnQuoted 
         <|> parseString 

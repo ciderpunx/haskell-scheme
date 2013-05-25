@@ -78,6 +78,7 @@ apply (Func params varargs body closure) args =
               Nothing       -> return env 
 apply _ _                                    = throwError $ Default "Tried to apply a non-function"
 
+-- TODO and/or primitives
 eval :: Env -> LispVal -> IOThrowsError LispVal
 eval env val@(String _)                         = return val
 eval env val@(Number _)                         = return val
@@ -110,7 +111,19 @@ eval env form@(List (Atom "cond" : branches))                      =
                 Bool False -> eval env (List (Atom "cond" : (tail branches)))
                 Bool True  -> eval env conseq
                 p          -> throwError $ BadPredicate "Non-boolean predicate in cond expression" (show p)
-          _ -> throwError $ BadSpecialForm "Cond expression branch wasn't a pair of predicate, consequence: " form
+          _ -> throwError $ BadSpecialForm "Cond expression branch wasn't a pair of predicate, consequence (or an else clause) at: " form
+eval env form@(List (Atom "case" : key : branches)) = 
+    if null branches
+      then throwError $ BadSpecialForm "Case expression needs a true (default) branch: " form
+      else case head branches of
+         List (Atom "else" : conseqs)   -> mapM (eval env) conseqs >>= return . last
+         List ((List datums) : conseqs) -> do
+            result <- eval env key
+            equals <- mapM (\x -> (liftThrows . eqv) [result, x]) datums
+            if Bool True `elem` equals
+              then mapM (eval env) conseqs >>= return . last
+              else eval env $ List (Atom "case" : key : tail branches)
+         _                               -> throwError $ BadSpecialForm "Bad case expression form: " form
 eval env (List [Atom "if", pred, conseq, alt]) = do
     result <- eval env pred
     case result of
@@ -304,7 +317,7 @@ showValType :: [LispVal] -> ThrowsError LispVal
 showValType [(String s)]             = return $ String $ "String \"" ++ s ++ "\""
 showValType [(Atom a)]               = return $ String $ "Atom " ++ a
 showValType [(Character c)]          = return $ String $ "Character " ++ show c
-showValType [(Number n)]             = return $ String $ "Number" ++ show n
+showValType [(Number n)]             = return $ String $ "Number " ++ show n
 showValType [(Float (Short n))]      = return $ String $ "Short Float " ++show n
 showValType [(Float (Long n))]       = return $ String $ "Long Float " ++ show n
 showValType [(Bool True)]            = return $ String $ "Boolean #t"

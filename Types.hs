@@ -4,13 +4,14 @@ import Control.Monad.Error
 import Text.ParserCombinators.Parsec hiding (spaces)
 import Data.IORef
 import System.IO
+import Data.Complex
+import Data.Ratio
 import GHC.Float
 
 data LispVal = Atom String               
              | List [LispVal]
              | DottedList [LispVal] LispVal
-             | Number Integer
-             | Float LispFloat
+             | Number LispNum
              | Character Char
              | String String
              | Bool Bool
@@ -27,9 +28,11 @@ showVal (String s)             = "\"" ++ s ++ "\""
 showVal (Atom a)               = a
 showVal (Character c)          = show c
 showVal (Comment)              = ""
-showVal (Number n)             = show n
-showVal (Float (Short n))      = show n
-showVal (Float (Long n))       = show n
+showVal (Number (Int n))       = show n
+showVal (Number (Dbl n))       = show n
+showVal (Number (Rat n))       = (show $ numerator n) ++ "/" ++ (show $ denominator n)
+showVal (Number (Cpx n))       = (show $ realPart n) ++ "+" 
+                                 ++ (show $ imagPart n) ++ "i"
 showVal (Bool True)            = "#t"
 showVal (Bool False)           = "#f"
 showVal (List contents)        = "(" ++ unwordsList contents ++ ")"
@@ -53,14 +56,6 @@ eqVal (Atom a) (Atom a')     = a==a'
 eqVal (Character c) (Character c')         
                              = c==c'
 eqVal (Number n) (Number n') = n==n'
-eqVal (Float (Short n)) (Float (Short n'))     
-                             = n==n'
-eqVal (Float (Short n)) (Float (Long n'))     
-                             = float2Double n==n'
-eqVal (Float (Long n)) (Float (Short n'))     
-                             = n==float2Double n'
-eqVal (Float (Long n)) (Float (Long n'))     
-                             = n==n'
 eqVal (Bool True) (Bool True)= True
 eqVal (Bool False) (Bool False)
                              = True
@@ -80,8 +75,8 @@ eqVal _ _                    = False -- Comment and Bool T/F && F/T fall through
 unwordsList :: [LispVal] -> String
 unwordsList = unwords . map showVal
 
-data LispFloat = Short Float | Long Double
-    deriving (Show,Eq)
+data LispNum = Int Integer | Dbl Double | Rat Rational | Cpx (Complex Double)
+    deriving (Eq)
 
 data Unpacker = forall a. Eq a => AnyUnpacker (LispVal -> ThrowsError a)
 

@@ -10,10 +10,10 @@ primitives :: [(String, [LispVal] -> ThrowsError LispVal)]
 primitives = [("+", numericBinop (+)),
               ("-", numericBinop (-)),
               ("*", numericBinop (*)),
-              ("/", numericBinop div),
-              ("mod", numericBinop mod),
-              ("quotient", numericBinop quot),
-              ("remainder", numericBinop rem),
+              ("/", numericBinop (/)),
+              ("mod", integerBinop mod),
+              ("quotient", integerBinop quot),
+              ("remainder", integerBinop rem),
               ("=", numBoolBinop (==)),
               ("<", numBoolBinop (<)),
               (">", numBoolBinop (>)),
@@ -81,8 +81,10 @@ apply _ _                                    = throwError $ Default "Tried to ap
 -- TODO and/or primitives
 eval :: Env -> LispVal -> IOThrowsError LispVal
 eval env val@(String _)                         = return val
-eval env val@(Number _)                         = return val
-eval env val@(Float _)                          = return val
+eval env val@(Number (Int _))                   = return val
+eval env val@(Number (Dbl _))                   = return val
+eval env val@(Number (Rat _))                   = return val
+eval env val@(Number (Cpx _))                   = return val
 eval env val@(Bool _)                           = return val
 eval env val@(Atom id)                          = getVar env id
 eval env val@(Character _)                      = return val
@@ -145,12 +147,20 @@ makeNormalFunc = makeFunc Nothing
 makeVarargs :: LispVal -> Env -> [LispVal] -> [LispVal] -> IOThrowsError LispVal
 makeVarargs = makeFunc . Just . showVal
 
-
-
--- TODO: need implementation of this for Float/Doubles too
-numericBinop :: (Integer -> Integer -> Integer) -> [LispVal] -> ThrowsError LispVal
+-- We just make everything into Doubles (using unpackNum, and then see if the result looks int-ish)
+-- which works well enough, but probably gives rounding errors from time to time.
+numericBinop :: (Double -> Double -> Double) -> [LispVal] -> ThrowsError LispVal
 numericBinop op singleVal@[_] = throwError $ NumArgs 2 singleVal
-numericBinop op params        = mapM unpackNum params >>= return . Number . foldl1 op
+numericBinop op params        = do 
+    result <- mapM unpackNum params >>= return . Number . Dbl . foldl1 (op) 
+    asDbl <- unpackNum result
+    if asDbl == (fromIntegral $ round asDbl)
+      then return $ Number . Int $ round asDbl
+      else return $ result
+
+integerBinop :: (Integer -> Integer -> Integer) -> [LispVal] -> ThrowsError LispVal
+integerBinop op singleVal@[_] = throwError $ NumArgs 2 singleVal
+integerBinop op params        = mapM unpackInt params >>= return . Number . Int . foldl1 op
 
 -- Always have one argument
 unaryOp :: (LispVal -> LispVal) -> [LispVal] -> ThrowsError LispVal
@@ -200,30 +210,33 @@ isChar :: LispVal -> LispVal
 isChar (Character _ )  = Bool True
 isChar _               = Bool False
 
-
-unpackNum :: LispVal -> ThrowsError Integer
-unpackNum (Number n)        = return n
-unpackNum (Float (Long f))  = return $ round f
-unpackNum (Float (Short f)) = return $ round f
-unpackNum (List [n])        = unpackNum n
-unpackNum (String n)        = let parsed = reads n in 
+unpackNum :: LispVal -> ThrowsError Double
+unpackNum (Number (Int n)) = return $ fromIntegral n
+unpackNum (Number (Rat n)) = return $ fromRational n
+unpackNum x@(Number (Cpx n)) 
+                           = throwError $ TypeMismatch "Integer, Rational or Double" x 
+unpackNum (Number (Dbl f)) = return f
+unpackNum (List [n])       = unpackNum n
+unpackNum (String n)       = let parsed = reads n in 
                                  if null parsed 
                                    then throwError $ TypeMismatch "Number" $ String n
                                    else return $ fst $ parsed !! 0
-unpackNum notNum            = throwError $ TypeMismatch "Number" notNum
+unpackNum notNum           = throwError $ TypeMismatch "Number" notNum
+
+unpackInt :: LispVal -> ThrowsError Integer
+unpackInt i = do 
+  x <- unpackNum i 
+  return $ round x
 
 unpackFloat :: LispVal -> ThrowsError Double
-unpackFloat (Float (Long f))  = return $ f
-unpackFloat (Float (Short f)) = return $ float2Double f
-unpackFloat (Number n)        = return $ fromInteger n
-unpackFloat (List [n])        = unpackFloat n
-unpackFloat notFloat          = throwError $ TypeMismatch "Float" notFloat
+unpackFloat = unpackNum
 
 unpackStr :: LispVal -> ThrowsError String
-unpackStr (String s) = return s
-unpackStr (Number s) = return $ show s
-unpackStr (Bool s)   = return $ show s
-unpackStr notString  = throwError $ TypeMismatch "String" notString
+unpackStr (String s)       = return s
+unpackStr (Number (Int s)) = return $ show s
+unpackStr (Number (Dbl s)) = return $ show s
+unpackStr (Bool s)         = return $ show s
+unpackStr notString        = throwError $ TypeMismatch "String" notString
 
 unpackBool :: LispVal -> ThrowsError Bool
 unpackBool (Bool b) = return b
@@ -287,7 +300,8 @@ cons badArgList               = throwError $ NumArgs 2 badArgList
 
 eqv :: [LispVal] -> ThrowsError LispVal
 eqv [(Bool arg1), (Bool arg2)]             = return $ Bool $ arg1 == arg2
-eqv [(Number arg1), (Number arg2)]         = return $ Bool $ arg1 == arg2
+eqv [(Number arg1), (Number arg2)]               
+                                           = return $ Bool $ arg1 == arg2
 eqv [(String arg1), (String arg2)]         = return $ Bool $ arg1 == arg2
 eqv [(Atom arg1), (Atom arg2)]             = return $ Bool $ arg1 == arg2
 eqv [(DottedList xs x), (DottedList ys y)] = eqv [List $ xs ++ [x], List $ ys ++ [y]]
@@ -317,9 +331,10 @@ showValType :: [LispVal] -> ThrowsError LispVal
 showValType [(String s)]             = return $ String $ "String \"" ++ s ++ "\""
 showValType [(Atom a)]               = return $ String $ "Atom " ++ a
 showValType [(Character c)]          = return $ String $ "Character " ++ show c
-showValType [(Number n)]             = return $ String $ "Number " ++ show n
-showValType [(Float (Short n))]      = return $ String $ "Short Float " ++show n
-showValType [(Float (Long n))]       = return $ String $ "Long Float " ++ show n
+showValType [(Number (Int n))]       = return $ String $ "Integer " ++ show n
+showValType [(Number (Dbl n))]       = return $ String $ "Float " ++ show n
+showValType [(Number (Rat n))]       = return $ String $ "Rational " ++ show n
+showValType [(Number (Cpx n))]       = return $ String $ "Complex " ++ show n
 showValType [(Bool True)]            = return $ String $ "Boolean #t"
 showValType [(Bool False)]           = return $ String $ "Boolean #f"
 showValType [(Comment)]              = return $ String $ "Comment"

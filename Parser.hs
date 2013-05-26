@@ -1,6 +1,8 @@
 module Parser where
 import Control.Monad.Error
 import Data.Char
+import Data.Ratio
+import Data.Complex
 import Numeric
 import Text.ParserCombinators.Parsec hiding (spaces)
 
@@ -32,7 +34,7 @@ parseDec :: Parser LispVal
 parseDec = do
     sign   <- option '0' (char '-')
     digits <- many1 digit 
-    return $ Number . read $ sign : digits
+    return $ Number . Int . read $ sign : digits
 
 -- We support signed decimal floats but not hex, bin or dec floats
 -- Default precision is Double as per R5RS 
@@ -42,39 +44,62 @@ parseDec = do
 parseFloat :: Parser LispVal
 parseFloat = do
     sign       <- option '0' (char '-')
-    digitsExp  <- many1 digit 
+    digitsSig  <- many1 digit 
     char '.'
     digitsFrac <- many1 digit 
     exp        <- option 'E' (oneOf "sSfFdDlLeE")
     digitExp'  <- option '0' digit -- not sure if this is ever used?
-    let float   = digitsExp ++ "." ++ digitsFrac
+    let float   = digitsSig ++ "." ++ digitsFrac
         isShort = (exp `elem` "sSfF")
-    case isShort of 
-      True   -> return $ Float . Short . read $ sign : (show (fst (readFloat float !! 0)))
-      False  -> return $ Float . Long . read $ sign : (show (fst (readFloat float !! 0)))
+    return $ Number . Dbl . read $ sign : (show (fst (readFloat float !! 0)))
+
+-- We support signed Rationals
+parseRat :: Parser LispVal
+parseRat = do
+    sign       <- option '0' (char '-')
+    num  <- many1 digit 
+    char '/'
+    den <- many1 digit 
+    return $ Number . Rat $ (read $ ( sign : num )) % (read den)
+
+parseCpx :: Parser LispVal
+parseCpx = do 
+    x <- (try parseFloat <|> parseDec)
+    char '+' 
+    y <- (try parseFloat <|> parseDec)
+    char 'i' 
+    return $ Number . Cpx $ (toDouble x :+ toDouble y)
+
+toDouble :: LispVal -> Double
+toDouble (Number (Dbl x)) = x 
+toDouble (Number (Rat x)) = fromRational x 
+toDouble (Number (Int x)) = fromIntegral x 
 
 -- we support signed versions of binary, decimal, octal, hexadecimal integers
 -- TODO: Exact and inexact number support. Don't really understand or care what it is/is for
 parseNumber :: Parser LispVal 
 parseNumber = do
-      parseDec 
-  <|> try parseHex 
-  <|> try parseOct 
-  <|> try parseBin
+            try parseCpx
+        <|> try parseFloat 
+        <|> try parseRat 
+        <|> try parseHex 
+        <|> try parseOct 
+        <|> try parseBin 
+        <|> try parseDec 
 
 parseHex :: Parser LispVal
 parseHex = do
     string "#x"
     sign   <- option '0' (char '-')
     digits <- many1 hexDigit
-    return $ Number . read $ sign : (show (fst (readHex digits !! 0 )))
+    return $ Number . Int . read $ sign : (show (fst (readHex digits !! 0 )))
 
 parseOct :: Parser LispVal
 parseOct = do 
     string "#o"
     sign   <- option '0' (char '-')
     digits <- many1 octDigit
-    return $ Number . read $ sign : (show (fst (readOct digits !! 0 )))
+    return $ Number . Int . read $ sign : (show (fst (readOct digits !! 0 )))
 
 parseChar :: Parser LispVal
 parseChar = do
@@ -145,7 +170,7 @@ parseBin = do
     string "#b"
     sign   <- option '0' (char '-')
     digits <- many1 (oneOf "01")
-    return $ Number . readBin $ sign : digits
+    return $ Number . Int . readBin $ sign : digits
 
 parseAtom :: Parser LispVal
 parseAtom = do
@@ -202,7 +227,6 @@ parseExpr :: Parser LispVal
 parseExpr = parseQuoted 
         <|> try parseChar
         <|> try parseBool
-        <|> try parseFloat
         <|> try parseNumber
         <|> parseAtom 
         <|> parseQuasiQuoted 

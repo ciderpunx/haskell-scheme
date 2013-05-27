@@ -1,6 +1,7 @@
 module Operations where
 import Control.Monad.Error
 import GHC.Float
+import Data.Complex
 import System.IO
 
 import Parser
@@ -50,6 +51,7 @@ ioPrimitives = [("apply", applyProc),
                 ("close-output-port", closePort),
                 ("read", readProc),
                 ("write", writeProc),
+                ("display", displayProc),
                 ("read-contents", readContents),
                 ("read-all", readAll)]
 
@@ -89,6 +91,7 @@ eval env val@(Bool _)                           = return val
 eval env val@(Atom id)                          = getVar env id
 eval env val@(Character _)                      = return val
 eval env val@(Comment)                          = return val
+eval env (List [Atom "exit"])                   = error "Exit called" -- bodgy way to allow exiting from within programs, just die
 eval env (List [Atom "quote", val])             = return val
 eval env (List [Atom "set!", Atom var, form])   = eval env form >>= setVar env var
 eval env (List [Atom "define", Atom var, form]) = eval env form >>= defineVar env var
@@ -147,16 +150,24 @@ makeNormalFunc = makeFunc Nothing
 makeVarargs :: LispVal -> Env -> [LispVal] -> [LispVal] -> IOThrowsError LispVal
 makeVarargs = makeFunc . Just . showVal
 
--- We just make everything into Doubles (using unpackNum, and then see if the result looks int-ish)
--- which works well enough, but probably gives rounding errors from time to time.
-numericBinop :: (Double -> Double -> Double) -> [LispVal] -> ThrowsError LispVal
+-- We are now making everything into complex doubles, and returning the least type that we can, if we get an x+0i
+-- then we deal with it as a double, when the double is a round number we make it into an int. There may be rounding 
+-- errors. Thanks to G for explaining complex numbers from memory.
+-- TODO: Its seems a bit extra to always have to use complex numbers on the off chance we might need them. Performance 
+-- implications?
+-- Old type signature: numericBinop :: (Double -> Double -> Double) -> [LispVal] -> ThrowsError LispVal
+numericBinop :: (Complex Double -> Complex Double -> Complex Double) -> [LispVal] -> ThrowsError LispVal
 numericBinop op singleVal@[_] = throwError $ NumArgs 2 singleVal
 numericBinop op params        = do 
-    result <- mapM unpackNum params >>= return . Number . Dbl . foldl1 (op) 
-    asDbl <- unpackNum result
-    if asDbl == (fromIntegral $ round asDbl)
-      then return $ Number . Int $ round asDbl
-      else return $ result
+        result <- mapM unpackCpx params >>= return . Number . Cpx . foldl1 (op) 
+        asCpx <- unpackCpx result
+        let asDbl    = realPart asCpx
+            imgPart  = imagPart asCpx
+        if imgPart == 0
+          then if asDbl == (fromIntegral $ round asDbl)
+                  then return $ Number . Int $ round asDbl
+                  else return $ Number . Dbl $ asDbl
+          else return result
 
 integerBinop :: (Integer -> Integer -> Integer) -> [LispVal] -> ThrowsError LispVal
 integerBinop op singleVal@[_] = throwError $ NumArgs 2 singleVal
@@ -223,6 +234,23 @@ unpackNum (String n)       = let parsed = reads n in
                                    else return $ fst $ parsed !! 0
 unpackNum notNum           = throwError $ TypeMismatch "Number" notNum
 
+unpackCpx :: LispVal -> ThrowsError (Complex Double)
+unpackCpx (Number (Int n))   = return $ (fromIntegral n) :+ 0
+unpackCpx (Number (Rat n))   = return $ (fromRational n) :+ 0
+unpackCpx (Number (Dbl f))   = return $ f :+ 0
+unpackCpx x@(Number (Cpx n)) = return n 
+unpackCpx (String n)       = 
+    let parsed = reads n in 
+      if null parsed 
+        then throwError $ TypeMismatch "Number" $ String n
+        else do 
+          let n' = fst $ parsed !! 0
+          return $ n' :+ 0
+unpackCpx notNum           = throwError $ TypeMismatch "Complex Number" notNum
+
+
+
+
 unpackInt :: LispVal -> ThrowsError Integer
 unpackInt i = do 
   x <- unpackNum i 
@@ -235,6 +263,8 @@ unpackStr :: LispVal -> ThrowsError String
 unpackStr (String s)       = return s
 unpackStr (Number (Int s)) = return $ show s
 unpackStr (Number (Dbl s)) = return $ show s
+unpackStr (Number (Rat s)) = return $ show s
+unpackStr (Number (Cpx s)) = return $ show s
 unpackStr (Bool s)         = return $ show s
 unpackStr notString        = throwError $ TypeMismatch "String" notString
 
@@ -263,6 +293,10 @@ readProc [Port port] = (liftIO $ hGetLine port) >>= liftThrows . readExpr
 writeProc :: [LispVal] -> IOThrowsError LispVal
 writeProc [obj]             = writeProc [obj, Port stdout]
 writeProc [obj, Port port]  = liftIO $ hPrint port obj >> (return $ Bool True)
+
+displayProc :: [LispVal] -> IOThrowsError LispVal
+displayProc [obj]             = displayProc [obj, Port stdout]
+displayProc [obj, Port port]  = liftIO $ hPutStrLn port (showFormattedVal obj) >> (return $ Bool True)
 
 readContents :: [LispVal] -> IOThrowsError LispVal
 readContents [String filename] = liftM String $ liftIO $ readFile filename

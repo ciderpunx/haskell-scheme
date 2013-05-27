@@ -24,9 +24,9 @@ data LispVal = Atom String
 instance Show LispVal where show = showVal
 
 showVal :: LispVal -> String
-showVal (String s)             = "\"" ++ s ++ "\""
+showVal (String s)             = show s 
 showVal (Atom a)               = a
-showVal (Character c)          = show c
+showVal (Character c)          = "#\\" ++ [c]
 showVal (Comment)              = ""
 showVal (Number (Int n))       = show n
 showVal (Number (Dbl n))       = show n
@@ -47,6 +47,12 @@ showVal (Func {params  = args,
                                     (case varargs of 
                                         Nothing   -> ""
                                         Just arg  -> " . " ++ arg) ++ ") ...)" 
+
+-- Used by display to print human-readable versions of strings and chars
+showFormattedVal :: LispVal -> String
+showFormattedVal (String s)    = s 
+showFormattedVal (Character c) = [c]
+showFormattedVal x             = showVal x
 
 instance Eq LispVal where (==) = eqVal
 

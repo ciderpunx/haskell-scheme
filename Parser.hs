@@ -15,18 +15,19 @@ spaces :: Parser ()
 spaces = skipMany1 space
 
 quotedChar :: Parser Char
-quotedChar =
-        noneOf "\""
-    <|> try (string "\\\"" >> return '"')
-    <|> try (string "\\\n" >> return '\n')
-    <|> try (string "\\\r" >> return '\r')
-    <|> try (string "\\\t" >> return '\t')
-    <|> try (string "\\\\" >> return '\\')
+quotedChar = do 
+    char '\\' 
+    x <- oneOf "\\\"rtn" -- TODO: Other escapeable chars?
+    case x of
+      'n' -> return '\n'
+      't' -> return '\t'
+      'r' -> return '\r'
+      otherwise  -> return x 
 
 parseString :: Parser LispVal
 parseString = do 
     char '"'
-    x <- many quotedChar
+    x <- many $ quotedChar <|> noneOf "\""
     char '"'
     return $ String x
 

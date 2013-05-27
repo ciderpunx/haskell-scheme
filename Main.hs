@@ -46,7 +46,7 @@ until_ pred prompt action = do
      else action result >> until_ pred prompt action
 
 runRepl :: IO ()
-runRepl = primitiveBindings >>= until_ (== "quit") (readPrompt "Scheme> ") . evalAndPrint
+runRepl = primitiveBindings >>= until_ (`elem` ["exit","(exit)"] ) (readPrompt "Scheme> ") . evalAndPrint
 
 runOne :: [String] -> IO ()
 runOne args = do

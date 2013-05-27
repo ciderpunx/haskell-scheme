@@ -79,5 +79,11 @@
 (prc0 2 2)
 (prc1 4 4)
 
+(display "...testing sequencing")
+(begin 
+  (+ 4 4)
+  (* 3 3)
+  (/ 5 2.5))
+
 (display "")
 "Tests ran OK"

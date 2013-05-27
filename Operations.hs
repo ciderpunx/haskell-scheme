@@ -92,6 +92,8 @@ eval env val@(Atom id)                          = getVar env id
 eval env val@(Character _)                      = return val
 eval env val@(Comment)                          = return val
 eval env (List [Atom "exit"])                   = error "Exit called" -- bodgy way to allow exiting from within programs, just die
+eval env (List (Atom "begin" :  exps))          = do mapM (eval env) exps
+                                                     return $ Bool True
 eval env (List [Atom "quote", val])             = return val
 eval env (List [Atom "set!", Atom var, form])   = eval env form >>= setVar env var
 eval env (List [Atom "define", Atom var, form]) = eval env form >>= defineVar env var
@@ -239,7 +241,7 @@ unpackCpx (Number (Int n))   = return $ (fromIntegral n) :+ 0
 unpackCpx (Number (Rat n))   = return $ (fromRational n) :+ 0
 unpackCpx (Number (Dbl f))   = return $ f :+ 0
 unpackCpx x@(Number (Cpx n)) = return n 
-unpackCpx (String n)       = 
+unpackCpx (String n)         = 
     let parsed = reads n in 
       if null parsed 
         then throwError $ TypeMismatch "Number" $ String n

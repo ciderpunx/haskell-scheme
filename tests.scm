@@ -1,5 +1,5 @@
 (* Bunch of tests for bits of functionality. By no means complete! *)
-(load "prelude.scm")
+(load "prelude.scm") ; because we need to test the functions in it
 (display "Run tests?")
 (define x (read))
 (if (eq? x 'n)
@@ -84,6 +84,26 @@
   (+ 4 4)
   (* 3 3)
   (/ 5 2.5))
+
+(display "...testing library functions")
+(list 1 2 3 4)
+(count 2 2 "x")
+(length 12 12 "y")
+(min 2 3 1 0)
+(max 2 4 2 6 2)
+(foldl + 0 (list 1 2 3))
+(map (λ (x) (+ x 1)) (list 1 2 3))
+(id 2)
+(any? (λ (x) (eq? #t x)) #f #t #f)
+(every? (λ (x) (eq? #t x)) #t #t #t)
+(not (every? (λ (x) (eq? #t x)) #t #t #t))
+(null? '())
+(zero? 3)
+(positive? 2)
+(negative? -1.5)
+(define x (compose (λ (x) (eq? x #t)) zero?))
+(x 0)
+ 
 
 (display "")
 "Tests ran OK"

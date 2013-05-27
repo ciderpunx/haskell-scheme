@@ -80,7 +80,6 @@ apply (Func params varargs body closure) args =
               Nothing       -> return env 
 apply _ _                                    = throwError $ Default "Tried to apply a non-function"
 
--- TODO and/or primitives
 eval :: Env -> LispVal -> IOThrowsError LispVal
 eval env val@(String _)                         = return val
 eval env val@(Number (Int _))                   = return val

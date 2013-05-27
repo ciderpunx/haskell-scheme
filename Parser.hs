@@ -9,7 +9,7 @@ import Text.ParserCombinators.Parsec hiding (spaces)
 import Types
 
 symbol :: Parser Char
-symbol = oneOf "-!$%|*+/:<=?>@^_~"
+symbol = oneOf "-!$%|*+/:<=?>@^_~&"
 
 spaces :: Parser ()
 spaces = skipMany1 space
@@ -219,10 +219,16 @@ parseUnQuoted = do
 -- TODO will break if someone puts a * in a comment
 parseComment :: Parser LispVal
 parseComment = do
-  string "(*"
-  many (noneOf "*")
-  string "*)"
-  return $ Comment
+    string "(*"
+    many (noneOf "*")
+    string "*)"
+    return $ Comment
+
+parseInlineComment :: Parser LispVal
+parseInlineComment = do
+    char ';'
+    many (noneOf "\r\n")
+    return $ Comment
 
 parseExpr :: Parser LispVal
 parseExpr = parseQuoted 
@@ -234,6 +240,7 @@ parseExpr = parseQuoted
         <|> parseUnQuoted 
         <|> parseString 
         <|> try parseComment
+        <|> try parseInlineComment
         <|> do char '('
                x <- try parseList <|> parseDottedList
                char ')'

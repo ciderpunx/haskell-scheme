@@ -2,6 +2,7 @@ module Operations where
 import Control.Monad.Error
 import GHC.Float
 import Data.Complex
+import Data.Vector as V (replicate, fromList) -- hiding ((++),mapM,map,elem,length,head,reverse)
 import System.IO
 
 import Parser
@@ -34,6 +35,8 @@ primitives = [("+", numericBinop (+)),
               ("eqv?", eqv),
               ("eq?", eqv),
               ("equal?", equal),
+              ("make-vector", mkVect),
+              ("vector", vector),
               ("type?", showValType),  -- this was added by me for convenience
               ("not", unaryBoolOp (boolNot)),
               ("string?", unaryOp isString),
@@ -41,6 +44,7 @@ primitives = [("+", numericBinop (+)),
               ("char?", unaryOp isChar),
               ("pair?", unaryOp isDottedList),
               ("symbol?", unaryOp isAtom),
+              ("vector?", unaryOp isVector),
               ("boolean?", unaryOp isBool)]
 
 ioPrimitives :: [(String, [LispVal] -> IOThrowsError LispVal)]
@@ -90,6 +94,7 @@ eval env val@(Bool _)                           = return val
 eval env val@(Atom id)                          = getVar env id
 eval env val@(Character _)                      = return val
 eval env val@(Comment)                          = return val
+eval env val@(Vector _)                         = return val
 eval env (List [Atom "exit"])                   = error "Exit called" -- bodgy way to allow exiting from within programs, just die
 eval env (List (Atom "begin" :  exps))          = do mapM (eval env) exps
                                                      return $ Bool True
@@ -218,6 +223,10 @@ isAtom :: LispVal -> LispVal
 isAtom (Atom _ )  = Bool True
 isAtom _          = Bool False
 
+isVector :: LispVal -> LispVal
+isVector (Vector _ )  = Bool True
+isVector _            = Bool False
+
 isChar :: LispVal -> LispVal
 isChar (Character _ )  = Bool True
 isChar _               = Bool False
@@ -248,9 +257,6 @@ unpackCpx (String n)         =
           let n' = fst $ parsed !! 0
           return $ n' :+ 0
 unpackCpx notNum           = throwError $ TypeMismatch "Complex Number" notNum
-
-
-
 
 unpackInt :: LispVal -> ThrowsError Integer
 unpackInt i = do 
@@ -319,6 +325,17 @@ car [DottedList (x : xs) _] = return x
 car [badArg]                = throwError $ TypeMismatch "Pair" badArg
 car badArgList              = throwError $ NumArgs 1 badArgList
 
+mkVect :: [LispVal] -> ThrowsError LispVal
+mkVect ((Number (Int size)) : obj : []) 
+                                    = return $ Vector $ V.replicate (fromInteger size) obj
+mkVect [(Number (Int size)) ]       = return $ Vector $ V.replicate (fromInteger size) (Bool False)
+mkVect _                            = throwError $ Default "Integer size [optional default object (#f if not given)]" 
+    
+vector :: [LispVal] -> ThrowsError LispVal
+vector [List (xs)]  = return $ Vector (V.fromList xs)
+vector x          = return $ Vector (V.fromList x)
+--vector badArg       = throwError $ Default "1 or more values with which to initialize the vector" 
+
 cdr :: [LispVal] -> ThrowsError LispVal
 cdr [List (_ : xs)]         = return $ List xs
 cdr [DottedList [_] x]      = return x
@@ -339,6 +356,7 @@ eqv [(Number arg1), (Number arg2)]
                                            = return $ Bool $ arg1 == arg2
 eqv [(String arg1), (String arg2)]         = return $ Bool $ arg1 == arg2
 eqv [(Atom arg1), (Atom arg2)]             = return $ Bool $ arg1 == arg2
+eqv [vect@(Vector _), vect'@(Vector _)]    = return $ Bool $ vect == vect'
 eqv [(DottedList xs x), (DottedList ys y)] = eqv [List $ xs ++ [x], List $ ys ++ [y]]
 eqv [(List arg1), (List arg2)]             = return $ Bool $ (length arg1 == length arg2) && 
                                                     (all eqvPair $ zip arg1 arg2)
@@ -373,5 +391,10 @@ showValType [(Number (Cpx n))]       = return $ String $ "Complex " ++ show n
 showValType [(Bool True)]            = return $ String $ "Boolean #t"
 showValType [(Bool False)]           = return $ String $ "Boolean #f"
 showValType [(Comment)]              = return $ String $ "Comment"
+showValType [vect@(Vector _)]        = return $ String $ "Vector " ++ show vect
+showValType [func@(Func _ _ _ _)]    = return $ String $ "Lambda " ++ show func
+showValType [iofunc@(IOFunc _)]      = return $ String $ "IO Function " ++ show iofunc
+showValType [pfunc@(PrimitiveFunc _)]= return $ String $ "Primitive Function " ++ show pfunc
 showValType [(List contents)]        = return $ String $ "List (" ++ unwordsList contents ++ ")"
 showValType [(DottedList head tail)] = return $ String $ "DottedList (" ++ unwordsList head ++ " . " ++ show tail ++ ")"
+showValType [t]                      = return $ String $ "Unknown type that Charlie probably forgot to implement a format for in type?"

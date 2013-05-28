@@ -2,6 +2,7 @@ module Parser where
 import Control.Monad.Error
 import Data.Char
 import Data.Ratio
+import Data.Vector as V hiding ((++),mapM,map,elem,length,head,reverse)
 import Data.Complex
 import Numeric
 import Text.ParserCombinators.Parsec hiding (spaces)
@@ -192,6 +193,12 @@ parseBool = do
 parseList :: Parser LispVal
 parseList = liftM List $ sepBy parseExpr spaces
 
+parseVector :: Parser LispVal
+parseVector = do
+    ls <- sepBy parseExpr spaces
+    let vect = Vector (fromList ls)
+    return $ vect
+
 parseDottedList :: Parser LispVal
 parseDottedList = do
    head <- endBy parseExpr spaces
@@ -230,6 +237,14 @@ parseInlineComment = do
     many (noneOf "\r\n")
     return $ Comment
 
+-- TODO get rid of some of these trys: we can say that 
+-- first char == # Char, Bool, (sometimes Dec), Oct, Bin, Vector
+--               - or digit Num Int || Num Dbl || Num Rat || Num Cpx
+--               ( List || Dotted List || Multiline comment
+--               " String
+--               ' quoted
+--               ` quasiquoted
+--               ; Comment
 parseExpr :: Parser LispVal
 parseExpr = parseQuoted 
         <|> try parseChar
@@ -241,6 +256,10 @@ parseExpr = parseQuoted
         <|> parseString 
         <|> try parseComment
         <|> try parseInlineComment
+        <|> try (do string "#("
+                    v <- parseVector
+                    char ')'
+                    return v)
         <|> do char '('
                x <- try parseList <|> parseDottedList
                char ')'

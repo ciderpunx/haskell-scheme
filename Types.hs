@@ -6,11 +6,13 @@ import Data.IORef
 import System.IO
 import Data.Complex
 import Data.Ratio
+import Data.Vector as V  hiding ((++),map,mapM)
 import GHC.Float
 
 data LispVal = Atom String               
              | List [LispVal]
              | DottedList [LispVal] LispVal
+             | Vector (V.Vector LispVal)
              | Number LispNum
              | Character Char
              | String String
@@ -37,6 +39,7 @@ showVal (Bool True)            = "#t"
 showVal (Bool False)           = "#f"
 showVal (List contents)        = "(" ++ unwordsList contents ++ ")"
 showVal (DottedList head tail) = "(" ++ unwordsList head ++ " . " ++ showVal tail ++ ")"
+showVal (Vector es)  = "#(" ++ unwordsList (toList es) ++ ")"
 showVal (Port _)               = "<IO port>"
 showVal (IOFunc _)             = "<IO primitive>"
 showVal (PrimitiveFunc _)      = "<primitive>"
@@ -69,6 +72,8 @@ eqVal (List contents) (List contents')
                              = (unwordsList contents)==(unwordsList contents')
 eqVal (DottedList head tail) (DottedList head' tail')
                              = (unwordsList head) == (unwordsList head') && tail == tail'
+eqVal (Vector es) (Vector es')
+                             = (unwordsList $ toList es) == (unwordsList $ toList es')
 eqVal (Port p) (Port p')     = p==p'
 --TODO: implement function equality. All functions are unequal ATM 
 --Need to think through whether to apply functions for comparison purposes 

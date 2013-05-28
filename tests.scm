@@ -27,9 +27,28 @@
 "string"
 'quoted
 '(quoted lst of things)
+#(1 2 "cat")
 #t
 #f
 (λ x y (x y))
+(vector "3" 'r)
+(make-vector 5 #\x)
+
+(display "...testing type? sort of functions")
+(type? #(1 3 "earwig" "four" '(9 9 9)))
+(type? (1 2.4 3.5 3/4 7.549354 2.6+4.5i #o456 #e-f00))
+(type? "boot")
+(type? 'qstr)
+(type? ())
+(type? map)
+(boolean? #t)
+(pair? '(1 . 3))
+(string? "my string")
+(list? '(1 2 3))
+(list? (list 1 2 3))
+(vector? #(1 3 2))
+(symbol? 'a)
+(char? #\nl)
 
 (display "...testing maths")
 (+ 1 1)
@@ -70,6 +89,7 @@
 (define x 3)
 (define y 4)
 (define z (+ x y))
+(define a #("rat" "bat" "cat"))
 
 (display "...testing function definitions")
 (define (prc0 (a b) (+ a b)))
@@ -103,7 +123,9 @@
 (negative? -1.5)
 (define x (compose (λ (x) (eq? x #t)) zero?))
 (x 0)
- 
+(list_last (list 1 2 3))
+(last 1 2 3)
+(vector-copy #(1 3 5 7))
 
 (display "")
 "Tests ran OK"

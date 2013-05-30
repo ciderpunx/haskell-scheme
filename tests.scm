@@ -1,12 +1,12 @@
 (* Bunch of tests for bits of functionality. By no means complete! *)
 (load "prelude.scm") ; because we need to test the functions in it
-(display "Run tests?")
+(displayln "Run tests?")
 (define x (read))
 (if (eq? x 'n)
   (exit)
-  (display "\nRunning tests..."))
+  (displayln "\nRunning tests..."))
 
-(display "...testing types")
+(displayln "...testing types")
 #\x
 #\newline
 1
@@ -32,16 +32,26 @@
 #f
 (λ x y (x y))
 (vector "3" 'r)
-(make-vector 5 #\x)
 
-(display "...testing type? sort of functions")
+(displayln "...testing vector functions")
+(make-vector 5 #\x)
+(define vec (vector 0 '(2 2 2 2) "Anna"))
+(vector-set! vec 1 '("Sue" "Sue"))
+(assert (vector-length? vec) 3 "vector of unexpected length")
+
+(displayln "...testing set!")
+(define q 5)
+(set! q 6)
+(assert q 6 "set! didn't set a var as expected") 
+
+(displayln "...testing type? sort of functions")
 (type? #(1 3 "earwig" "four" '(9 9 9)))
-(type? (1 2.4 3.5 3/4 7.549354 2.6+4.5i #o456 #e-f00))
+(type? '(1 2.4 3.5 3/4 7.549354 2.6+4.5i #o456 #x-f00))
 (type? "boot")
 (type? 'qstr)
-(type? ())
+(type? '())
 (type? map)
-(boolean? #t)
+(assert (boolean? #t) #t "True is not true")
 (pair? '(1 . 3))
 (string? "my string")
 (list? '(1 2 3))
@@ -50,7 +60,7 @@
 (symbol? 'a)
 (char? #\nl)
 
-(display "...testing maths")
+(displayln "...testing maths")
 (+ 1 1)
 (- 2.0 1)
 (/ 4 4)
@@ -62,9 +72,12 @@
 (+ "4.5" "2")
 (/ 2+3i 2+3i)
 (- -3 -1.2+-3i)
-(+ -2.4 2 -1.3+-4i 2/5 4.54893489 2+8.32819i #b11 #xf00 #o-236 "5" "4.5")
+(+ -2.4 2 -1.3+-4i 2/5 4.54893489 2+8.32819i #b11 #xf00 #o-236 "5" "4.5") 
+(assert (+ 2.3 1.5) 3.8 "Can't add up")
+(assert (+ 2+3i 1+5i) 3.0+8.0i "Can't add up Complex numbers.")
 
-(display "...testing conditionals")
+
+(displayln "...testing conditionals")
 (if (> 3 2) 'yes 'no)                   
 (if (> 2 3) 'yes 'no)                   
 (if (> 3 2) (- 3 2) (+ 3 2))                            
@@ -81,31 +94,34 @@
   ((w y) 'semivowel)
   (else 'consonant))         
 
-(display "...testing lambdas(λs)")
-(lambda a b (* 2 b))
-(λ a b (* a b))
+(displayln "...testing lambdas(λs)")
+(lambda (a b) (* 2 b))
+(define a (λ (a b) (* a b)))
+(assert (type? a) "Lambda (λ (\"a\" \"b\") ...)" "Lambda not correctly lambda-ing")
 
-(display "...testing defines")
+(displayln "...testing defines")
 (define x 3)
 (define y 4)
 (define z (+ x y))
 (define a #("rat" "bat" "cat"))
+(assert (null? a) #f "Bound var not in scope")
 
-(display "...testing function definitions")
-(define (prc0 (a b) (+ a b)))
-(define (prc1 (a . b) (+ a b)))
+(displayln "...testing function definitions")
+(define (prc0 a b) (+ a b))
+(define (prc1 a . b) (+ a (car b)))
+(assert (and (null? prc0) (null? prc1)) #f "Function binding comes up null")
 
-(display "...testing function application")
+(displayln "...testing function application")
 (prc0 2 2)
-(prc1 4 4)
+(assert (prc1 4 4) 8 "Function calling does not return expected rsult (8)")
 
-(display "...testing sequencing")
+(displayln "...testing sequencing")
 (begin 
   (+ 4 4)
   (* 3 3)
   (/ 5 2.5))
 
-(display "...testing library functions")
+(displayln "...testing library functions")
 (list 1 2 3 4)
 (count 2 2 "x")
 (length 12 12 "y")
@@ -127,5 +143,5 @@
 (last 1 2 3)
 (vector-copy #(1 3 5 7))
 
-(display "")
+(displayln "")
 "Tests ran OK"

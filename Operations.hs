@@ -2,7 +2,7 @@ module Operations where
 import Control.Monad.Error
 import GHC.Float
 import Data.Complex
-import Data.Vector as V (replicate, fromList) -- hiding ((++),mapM,map,elem,length,head,reverse)
+import Data.Vector as V (replicate, fromList, toList, (!), (//)) 
 import System.IO
 
 import Parser
@@ -37,6 +37,8 @@ primitives = [("+", numericBinop (+)),
               ("equal?", equal),
               ("make-vector", mkVect),
               ("vector", vector),
+              ("vector-length?", vectLength),
+              ("vector-ref", vectElemAt),
               ("type?", showValType),  -- this was added by me for convenience
               ("not", unaryBoolOp (boolNot)),
               ("string?", unaryOp isString),
@@ -96,8 +98,17 @@ eval env val@(Character _)                      = return val
 eval env val@(Comment)                          = return val
 eval env val@(Vector _)                         = return val
 eval env (List [Atom "exit"])                   = error "Exit called" -- bodgy way to allow exiting from within programs, just die
-eval env (List (Atom "begin" :  exps))          = do mapM (eval env) exps
-                                                     return $ Bool True
+eval env (List (Atom "begin" :  exps))          = do xs <- mapM (eval env) exps 
+                                                     return $ last xs
+eval env (List [Atom "vector-set!", Atom var, Number (Int i), form]) =
+     do vect <- getVar env var 
+        case vect of 
+          (Vector vs) -> do obj <- eval env form
+                            if i > -1 && i < (fromIntegral . length $ V.toList vs)
+                              then do let newV = Vector $ vs // [((fromIntegral i), obj)] 
+                                      setVar env var newV
+                              else throwError $ Default "Vector index out of bounds"
+          v        -> throwError $ BadSpecialForm "vector-set! called on non-vector: " v
 eval env (List [Atom "quote", val])             = return val
 eval env (List [Atom "set!", Atom var, form])   = eval env form >>= setVar env var
 eval env (List [Atom "define", Atom var, form]) = eval env form >>= defineVar env var
@@ -303,7 +314,8 @@ writeProc [obj, Port port]  = liftIO $ hPrint port obj >> (return $ Bool True)
 
 displayProc :: [LispVal] -> IOThrowsError LispVal
 displayProc [obj]             = displayProc [obj, Port stdout]
-displayProc [obj, Port port]  = liftIO $ hPutStrLn port (showFormattedVal obj) >> (return $ Bool True)
+displayProc [obj, Port port]  = liftIO $ hPutStr port (showFormattedVal obj) >> (return $ Character '\0')
+displayProc badArgs           = throwError $ TypeMismatch "Val,<Port>" $ List badArgs
 
 readContents :: [LispVal] -> IOThrowsError LispVal
 readContents [String filename] = liftM String $ liftIO $ readFile filename
@@ -332,9 +344,22 @@ mkVect [(Number (Int size)) ]       = return $ Vector $ V.replicate (fromInteger
 mkVect _                            = throwError $ Default "Integer size [optional default object (#f if not given)]" 
     
 vector :: [LispVal] -> ThrowsError LispVal
-vector [List (xs)]  = return $ Vector (V.fromList xs)
-vector x          = return $ Vector (V.fromList x)
---vector badArg       = throwError $ Default "1 or more values with which to initialize the vector" 
+vector x = return $ Vector (V.fromList x) 
+
+vectLength :: [LispVal] -> ThrowsError LispVal
+vectLength [Vector (xs)] = return $ Number . Int . fromIntegral . length $ V.toList xs
+vectLength [badArg]      = throwError $ TypeMismatch "Vector" badArg
+vectLength badArgList    = throwError $ NumArgs 1 badArgList
+
+vectElemAt :: [LispVal] -> ThrowsError LispVal 
+vectElemAt ((Vector xs) : (Number (Int n)) : [])
+                         = if n > -1 && n < (fromIntegral . length $ V.toList xs)
+                            then return $ xs ! (fromIntegral n) 
+                            else throwError $ Default "Vector index out of bounds"
+vectElemAt (badArg1 : badArg2 : [])      
+                         = throwError $ TypeMismatch "Vector, Int" (List (badArg1 : [badArg2]))
+vectElemAt [badArg]      = throwError $ TypeMismatch "Vector, Int" badArg
+vectElemAt badArgList    = throwError $ NumArgs 2 badArgList
 
 cdr :: [LispVal] -> ThrowsError LispVal
 cdr [List (_ : xs)]         = return $ List xs

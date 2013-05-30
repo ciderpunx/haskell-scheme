@@ -28,6 +28,7 @@ instance Show LispVal where show = showVal
 showVal :: LispVal -> String
 showVal (String s)             = show s 
 showVal (Atom a)               = a
+showVal (Character '\0')       = "" -- used as a convenience so display can return something (no Unit or Nil type)
 showVal (Character c)          = "#\\" ++ [c]
 showVal (Comment)              = ""
 showVal (Number (Int n))       = show n

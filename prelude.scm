@@ -37,4 +37,14 @@
       (list_last (cdr lst))))
 (define (last . lst)      (list_last lst))     
 (define (vector-copy v)   (if (vector? v) v #()))
-(define (list->vector l)  (vector v))
+(define (list->vector l)  (vector l))
+(define (displayln m)     (begin 
+                            (display m) 
+                            (display #\newline)))
+(define (assert val expected msg) 
+  (if (eq? val expected) 
+      #t
+      (begin 
+        (display "!!!!! Assertion Failed !!!!!!\n")
+        (displayln msg)
+        (exit))))

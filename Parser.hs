@@ -2,7 +2,7 @@ module Parser where
 import Control.Monad.Error
 import Data.Char
 import Data.Ratio
-import Data.Vector as V hiding ((++),mapM,map,elem,length,head,reverse)
+import Data.Vector as V (fromList) 
 import Data.Complex
 import Numeric
 import Text.ParserCombinators.Parsec hiding (spaces)

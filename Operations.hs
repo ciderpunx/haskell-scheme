@@ -2,6 +2,7 @@ module Operations where
 import Control.Monad.Error
 import GHC.Float
 import Data.Complex
+import Data.Char
 import Data.Vector as V (replicate, fromList, toList, (!), (//)) 
 import System.IO
 
@@ -29,6 +30,7 @@ primitives = [("+", numericBinop (+)),
               ("string>?", strBoolBinop (>)),
               ("string<=?", strBoolBinop (<=)),
               ("string>=?", strBoolBinop (>=)),
+              ("as-list", asList), -- an extension for convenience
               ("car", car),
               ("cdr", cdr),
               ("cons", cons),
@@ -331,12 +333,6 @@ boolNot :: LispVal -> LispVal
 boolNot (Bool True)   = Bool False
 boolNot (Bool False)  = Bool True
 
-car :: [LispVal] -> ThrowsError LispVal
-car [List (x : xs)]         = return x
-car [DottedList (x : xs) _] = return x
-car [badArg]                = throwError $ TypeMismatch "Pair" badArg
-car badArgList              = throwError $ NumArgs 1 badArgList
-
 mkVect :: [LispVal] -> ThrowsError LispVal
 mkVect ((Number (Int size)) : obj : []) 
                                     = return $ Vector $ V.replicate (fromInteger size) obj
@@ -344,6 +340,7 @@ mkVect [(Number (Int size)) ]       = return $ Vector $ V.replicate (fromInteger
 mkVect _                            = throwError $ Default "Integer size [optional default object (#f if not given)]" 
     
 vector :: [LispVal] -> ThrowsError LispVal
+vector [(List xs)] = return $ Vector (V.fromList xs) -- quite convenient for list->vector
 vector x = return $ Vector (V.fromList x) 
 
 vectLength :: [LispVal] -> ThrowsError LispVal
@@ -360,6 +357,35 @@ vectElemAt (badArg1 : badArg2 : [])
                          = throwError $ TypeMismatch "Vector, Int" (List (badArg1 : [badArg2]))
 vectElemAt [badArg]      = throwError $ TypeMismatch "Vector, Int" badArg
 vectElemAt badArgList    = throwError $ NumArgs 2 badArgList
+
+-- turn LispVal into a list. TODO: Vector support 
+asList :: [LispVal] -> ThrowsError LispVal
+asList [i@(Number _)]  = asList $ [(String $ show i)]
+asList [(String s)]    = return $ List $ 
+                           map (\x -> if isDigit x 
+                                       then (Number (Int (read [x]))) 
+                                       else Character x) s
+asList [(List (l:ls))] = do ls' <- asList ls
+                            l'  <- asList [l]
+                            case ls' of 
+                              List [] -> return $ List [l']
+                              List [e] -> return $ List $ (l' : [(List [e])])
+                              List (es) -> return $ List (l' : es)
+asList [x@(List [])]   = return x
+asList [x]             = return $ List [x]
+asList (x:xs)          = do xs' <- asList xs
+                            x' <- asList [x]
+                            case xs' of
+                              List []   -> return $ x'
+                              List [e]  -> return $ List $ (x' : [(List [e])])
+                              List (es) -> return $ List $ (x' : es) 
+asList _               = return $ List []
+
+car :: [LispVal] -> ThrowsError LispVal
+car [List (x : xs)]         = return x
+car [DottedList (x : xs) _] = return x
+car [badArg]                = throwError $ TypeMismatch "Pair" badArg
+car badArgList              = throwError $ NumArgs 1 badArgList
 
 cdr :: [LispVal] -> ThrowsError LispVal
 cdr [List (_ : xs)]         = return $ List xs

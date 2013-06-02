@@ -58,6 +58,8 @@
 (assert (string-length "da") 2 "string-length, 2 letter string")
 (assert (string-length "daw") 3 "string-length, 3 letter string")
 (assert (string-length "dawg") 4 "string-length, 4 letter string")
+(assert (string-null? "") #t "Empty string is string-null?")
+(assert (string-null? "lala") #f "Non-empty string is not string-null?")
 
 
 (displayln "...testing set!")

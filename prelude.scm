@@ -58,3 +58,4 @@
   (if (string? s) 
     (length (string->list s)) 
     (display "Non-string argument to string-length")))
+(define (string-null? s)  (eq? 0 (string-length s)))

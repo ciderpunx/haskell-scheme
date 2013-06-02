@@ -30,14 +30,35 @@
 #(1 2 "cat")
 #t
 #f
-(λ x y (x y))
+(λ (x y) (+ x y))
 (vector "3" 'r)
+
+(displayln "...testing list functions")
+(assert (list 1 2 3) '(1 2 3) "List construction with list")
+(assert (length '()) 0 "Empty list has zero length")
+(assert (length '(1 2 3)) 3 "3 element list has length")
 
 (displayln "...testing vector functions")
 (make-vector 5 #\x)
 (define vec (vector 0 '(2 2 2 2) "Anna"))
 (vector-set! vec 1 '("Sue" "Sue"))
-(assert (vector-length? vec) 3 "vector of unexpected length")
+(assert (vector-length vec) 3 "3 element vector of unexpected length")
+(assert (vector-length #()) 0 "empty vector, vector-length")
+
+(displayln "...testing string functions")
+(assert (string-append) "" "0 elem string append")
+(assert (string-append "") "" "1 elem empty string append")
+(assert (string-append "cat") "cat" "1 elem string append")
+(assert (string-append "cat" "piss") "catpiss" "2 elem string append")
+(assert (string-append "cat" "piss" "monkey") "catpissmonkey" "3 elem string append")
+(assert (string->list "") '() "string->list of empty string")
+(assert (string->list "dawg") '(#\d #\a #\w #\g) "string->list of dawg")
+(assert (string-length "") 0 "string-length, empty string")
+(assert (string-length "d") 1 "string-length, 1 letter string")
+(assert (string-length "da") 2 "string-length, 2 letter string")
+(assert (string-length "daw") 3 "string-length, 3 letter string")
+(assert (string-length "dawg") 4 "string-length, 4 letter string")
+
 
 (displayln "...testing set!")
 (define q 5)
@@ -121,10 +142,20 @@
   (* 3 3)
   (/ 5 2.5))
 
+(displayln "...testing as-list")
+(as-list #\t)
+(as-list #t)
+(as-list #(1 2 3))
+(as-list '(1 2 3))
+(as-list '(1 . 3))
+(as-list (λ (x y) (+ x y)))
+(assert (as-list 'earwig) (as-list "earwig") "asList function breaks")
+
+
 (displayln "...testing library functions")
 (list 1 2 3 4)
 (count 2 2 "x")
-(length 12 12 "y")
+(length '(12 12 "y"))
 (min 2 3 1 0)
 (max 2 4 2 6 2)
 (foldl + 0 (list 1 2 3))

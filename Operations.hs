@@ -39,8 +39,8 @@ primitives = [("+", numericBinop (+)),
               ("equal?", equal),
               ("make-vector", mkVect),
               ("vector", vector),
-              ("vector-length?", vectLength),
               ("vector-ref", vectElemAt),
+              ("string-append", stringAppend),
               ("type?", showValType),  -- this was added by me for convenience
               ("not", unaryBoolOp (boolNot)),
               ("string?", unaryOp isString),
@@ -343,11 +343,6 @@ vector :: [LispVal] -> ThrowsError LispVal
 vector [(List xs)] = return $ Vector (V.fromList xs) -- quite convenient for list->vector
 vector x = return $ Vector (V.fromList x) 
 
-vectLength :: [LispVal] -> ThrowsError LispVal
-vectLength [Vector (xs)] = return $ Number . Int . fromIntegral . length $ V.toList xs
-vectLength [badArg]      = throwError $ TypeMismatch "Vector" badArg
-vectLength badArgList    = throwError $ NumArgs 1 badArgList
-
 vectElemAt :: [LispVal] -> ThrowsError LispVal 
 vectElemAt ((Vector xs) : (Number (Int n)) : [])
                          = if n > -1 && n < (fromIntegral . length $ V.toList xs)
@@ -358,28 +353,29 @@ vectElemAt (badArg1 : badArg2 : [])
 vectElemAt [badArg]      = throwError $ TypeMismatch "Vector, Int" badArg
 vectElemAt badArgList    = throwError $ NumArgs 2 badArgList
 
--- turn LispVal into a list. TODO: Vector support 
+-- Turn LispVal into a list. 
 asList :: [LispVal] -> ThrowsError LispVal
-asList [i@(Number _)]  = asList $ [(String $ show i)]
-asList [(String s)]    = return $ List $ 
-                           map (\x -> if isDigit x 
-                                       then (Number (Int (read [x]))) 
-                                       else Character x) s
-asList [(List (l:ls))] = do ls' <- asList ls
-                            l'  <- asList [l]
-                            case ls' of 
-                              List [] -> return $ List [l']
-                              List [e] -> return $ List $ (l' : [(List [e])])
-                              List (es) -> return $ List (l' : es)
-asList [x@(List [])]   = return x
-asList [x]             = return $ List [x]
-asList (x:xs)          = do xs' <- asList xs
-                            x' <- asList [x]
-                            case xs' of
-                              List []   -> return $ x'
-                              List [e]  -> return $ List $ (x' : [(List [e])])
-                              List (es) -> return $ List $ (x' : es) 
-asList _               = return $ List []
+asList [i@(Number _)] = asList $ [(String $ show i)]
+asList [(String s)]   = asListStringLike s
+asList [(Atom a)]     = asListStringLike a
+asList [l@(List _)]   = return l
+asList [(Vector vs)]  = return $ List (toList vs)
+asList [x]            = return $ List [x]
+asList badArgList     = throwError $ NumArgs 1 badArgList
+
+-- Helper for stringlike LispVals (atoms, strings)
+asListStringLike :: String -> ThrowsError LispVal
+asListStringLike x = return $ List $ 
+                        map (\x -> if isDigit x 
+                                    then (Number (Int (read [x]))) 
+                                    else Character x) x
+
+stringAppend :: [LispVal] -> ThrowsError LispVal 
+stringAppend [] = return $ String []
+stringAppend ((String s):ss)  = return $ String $ s ++ (foldl (extract) "" ss)
+  where extract s (String s')     = s ++ s'
+        extract s badArg          = s
+stringAppend [badArg]         = throwError $ TypeMismatch "String" badArg
 
 car :: [LispVal] -> ThrowsError LispVal
 car [List (x : xs)]         = return x
@@ -406,6 +402,7 @@ eqv [(Bool arg1), (Bool arg2)]             = return $ Bool $ arg1 == arg2
 eqv [(Number arg1), (Number arg2)]               
                                            = return $ Bool $ arg1 == arg2
 eqv [(String arg1), (String arg2)]         = return $ Bool $ arg1 == arg2
+eqv [(Character arg1), (Character arg2)]   = return $ Bool $ arg1 == arg2
 eqv [(Atom arg1), (Atom arg2)]             = return $ Bool $ arg1 == arg2
 eqv [vect@(Vector _), vect'@(Vector _)]    = return $ Bool $ vect == vect'
 eqv [(DottedList xs x), (DottedList ys y)] = eqv [List $ xs ++ [x], List $ ys ++ [y]]

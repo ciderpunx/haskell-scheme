@@ -66,7 +66,8 @@
 (assert (make-string -1 #\n) "" "make-string with -1 size and char specified")
 (assert (make-string 0 #\n) "" "make-string with 0 size and char specified")
 (assert (make-string 4 #\l) "llll" "make-string with char specified")
-
+(assert (list->string '()) "" "list->string empty list")
+(assert (list->string '(#\a #\b)) "ab" "list->string non-empty list")
 
 (displayln "...testing set!")
 (define q 5)

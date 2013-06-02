@@ -99,6 +99,7 @@ data LispError = NumArgs Integer [LispVal]
                | NotFunction String String
                | BadPredicate String String
                | UnboundVar String String
+               | User String
                | Default String
 
 instance Show LispError where show = showError
@@ -133,6 +134,7 @@ showError (NumArgs expected found)      = "Expected " ++ show expected ++ " args
 showError (TypeMismatch expected found) = "Invalid type: expected " ++ expected ++ ", found " ++ show found
 showError (Parser parseErr)             = "Parse error at " ++ show parseErr
 showError (Default msg)                 = "Error: " ++ show msg
+showError (User msg)                    = "Userspace error: " ++ show msg
 
 
 type Env = IORef [(String, IORef LispVal)]

@@ -101,6 +101,10 @@ eval env val@(Character _)                      = return val
 eval env val@(Comment)                          = return val
 eval env val@(Vector _)                         = return val
 eval env (List [Atom "exit"])                   = error "Exit called" -- bodgy way to allow exiting from within programs, just die
+eval env (List [Atom "error", form])            = do errstr <- eval env form
+                                                     case errstr of
+                                                      String s -> throwError $ User s
+                                                      _        -> throwError $ User "Unspecified"
 eval env (List (Atom "begin" :  exps))          = do xs <- mapM (eval env) exps 
                                                      return $ last xs
 eval env (List [Atom "vector-set!", Atom var, Number (Int i), form]) =

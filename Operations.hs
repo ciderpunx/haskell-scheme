@@ -41,6 +41,7 @@ primitives = [("+", numericBinop (+)),
               ("vector", vector),
               ("vector-ref", vectElemAt),
               ("string-append", stringAppend),
+              ("make-string", mkString),
               ("type?", showValType),  -- this was added by me for convenience
               ("not", unaryBoolOp (boolNot)),
               ("string?", unaryOp isString),
@@ -377,6 +378,12 @@ stringAppend ((String s):ss)  = return $ String $ s ++ (foldl (extract) "" ss)
         extract s badArg          = s
 stringAppend [badArg]         = throwError $ TypeMismatch "String" badArg
 
+mkString :: [LispVal] -> ThrowsError LispVal
+mkString ((Number (Int size)) : Character c : []) 
+                                    = return $ String $ take (fromInteger size) (repeat c)
+mkString [(Number (Int size)) ]     = return $ String $ take (fromInteger size) (repeat ' ')
+mkString _                          = throwError $ Default "Integer size [optional default character (' ' if not given)]" 
+    
 car :: [LispVal] -> ThrowsError LispVal
 car [List (x : xs)]         = return x
 car [DottedList (x : xs) _] = return x

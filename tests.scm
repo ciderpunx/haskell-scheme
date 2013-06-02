@@ -60,6 +60,12 @@
 (assert (string-length "dawg") 4 "string-length, 4 letter string")
 (assert (string-null? "") #t "Empty string is string-null?")
 (assert (string-null? "lala") #f "Non-empty string is not string-null?")
+(assert (make-string -1 #\n) "" "make-string with -1 size")
+(assert (make-string 0 #\n) "" "make-string with 0 size")
+(assert (make-string 4 #\n) "nnnn" "make-string with 4 size, no char specified")
+(assert (make-string -1 #\n) "" "make-string with -1 size and char specified")
+(assert (make-string 0 #\n) "" "make-string with 0 size and char specified")
+(assert (make-string 4 #\l) "llll" "make-string with char specified")
 
 
 (displayln "...testing set!")

@@ -68,6 +68,11 @@
 (assert (make-string 4 #\l) "llll" "make-string with char specified")
 (assert (list->string '()) "" "list->string empty list")
 (assert (list->string '(#\a #\b)) "ab" "list->string non-empty list")
+(assert (string-copy "cat") "cat" "string-copy")
+(assert (string-ref 2 "xyz") #\z "string-ref last element")
+(assert (string-ref 0 "xyz") #\x "string-ref first element")
+(assert (string-ref 1 "xyz") #\y "string-ref second element")
+
 
 (displayln "...testing set!")
 (define q 5)

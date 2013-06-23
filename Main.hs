@@ -10,15 +10,6 @@ import Operations
 import Parser
 import Types
 
--- More convenient REPL if you run it with rlwrap (gives you readline support, history and such)
--- TODO: implement rationals and complex numbers
---       *. Add support for vectors.
---       *. Instead of using the try combinator, left-factor the grammar so that the common subsequence is its own parser. You should 
---          end up with a parser that matches a string of expressions, and one that matches either nothing or a dot and a single 
---          expressions. Combining the return values of these into either a List or a DottedList is left as a (somewhat tricky) 
---          exercise for the reader: you may want to break it out into another helper function.
---
-
 main :: IO ()
 main = do 
     args <- getArgs

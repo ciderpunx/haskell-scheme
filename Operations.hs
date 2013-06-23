@@ -115,7 +115,7 @@ eval env (List [Atom "vector-set!", Atom var, Number (Int i), form]) =
                               then do let newV = Vector $ vs // [((fromIntegral i), obj)] 
                                       setVar env var newV
                               else throwError $ Default "Vector index out of bounds"
-          v        -> throwError $ BadSpecialForm "vector-set! called on non-vector: " v
+          v           -> throwError $ BadSpecialForm "vector-set! called on non-vector: " v
 eval env (List [Atom "quote", val])             = return val
 eval env (List [Atom "set!", Atom var, form])   = eval env form >>= setVar env var
 eval env (List [Atom "define", Atom var, form]) = eval env form >>= defineVar env var
@@ -153,6 +153,16 @@ eval env form@(List (Atom "case" : key : branches)) =
               then mapM (eval env) conseqs >>= return . last
               else eval env $ List (Atom "case" : key : tail branches)
          _                               -> throwError $ BadSpecialForm "Bad case expression form: " form
+eval env (List [Atom "let", List varExpPairs, body]) = 
+    if null varExpPairs
+      then eval env body
+      else
+        case head varExpPairs of
+          List [Atom var, exp] -> do 
+                  evalExp <- eval env exp
+                  ienv <- liftIO (bindVars env [(var, evalExp)]) -- TODO this is copying the whole env. Prolly inefficient.
+                  eval ienv (List [Atom "let", List (tail varExpPairs), body])
+          bad -> throwError $ BadSpecialForm "Bad let expression " bad
 eval env (List [Atom "if", pred, conseq, alt]) = do
     result <- eval env pred
     case result of

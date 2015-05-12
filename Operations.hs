@@ -396,7 +396,7 @@ mkString :: [LispVal] -> ThrowsError LispVal
 mkString ((Number (Int size)) : Character c : []) 
                                     = return $ String $ take (fromInteger size) (repeat c)
 mkString ((Number (Int size)) : badArg : [])  
-                                    = throwError $ TypeMismatch "List of Chars" badArg
+                                    = throwError $ TypeMismatch "List of chars" badArg
 mkString [(Number (Int size)) ]     = return $ String $ take (fromInteger size) (repeat ' ')
 mkString _                          = throwError $ Default "Integer size [optional default character (' ' if not given)]" 
     
